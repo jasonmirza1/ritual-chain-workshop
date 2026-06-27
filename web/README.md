@@ -1,9 +1,8 @@
-# AI Bounty Judge
+# Commit-Reveal AI Bounty Judge
 
-A workshop-demo frontend for the **Ritual Chain** `SimpleAIBountyJudge` contract.
+A workshop-demo frontend for the **Ritual Chain** `AIJudge` commit-reveal contract.
 
-> Submit answers to a bounty. After the deadline, Ritual AI ranks all
-> submissions. The bounty owner finalizes the winner.
+> Commit answers before the deadline. Reveal answers after the deadline. Ritual AI ranks the revealed submissions, and the bounty owner finalizes the winner.
 
 Built with **Next.js (App Router) · TypeScript · Tailwind CSS · wagmi · viem**.
 
@@ -12,17 +11,18 @@ Built with **Next.js (App Router) · TypeScript · Tailwind CSS · wagmi · viem
 ## Product flow
 
 1. A bounty owner **creates a bounty** with a title, rubric, deadline, and reward.
-2. Participants **submit answers** before the deadline.
-3. After the deadline, the owner clicks **Judge All Submissions**.
-4. The frontend gathers all submissions, builds one Ritual LLM request, encodes
+2. Participants **submit commitments** before the deadline. Only the hash is stored on-chain.
+3. After the deadline, participants **reveal answers** with the salt saved in their browser.
+4. After reveals, the owner clicks **Judge All Submissions**.
+5. The frontend gathers all revealed submissions, builds one Ritual LLM request, encodes
    it as `llmInput`, and calls `judgeAll(bountyId, llmInput)`.
-5. The contract stores/emits the **AI review**.
-6. The owner reads the AI review and clicks **Finalize Winner** with the chosen
+6. The contract stores/emits the **AI review**.
+7. The owner reads the AI review and clicks **Finalize Winner** with the chosen
    `winnerIndex`.
-7. The contract pays the winner.
+8. The contract pays the winner.
 
 > AI review is advisory. The bounty owner finalizes the winner. All submissions
-> are judged together after the deadline. Only one winner receives the reward.
+> are judged together after the reveal phase. Only one winner receives the reward.
 
 ---
 
@@ -36,7 +36,7 @@ cp .env.example .env.local
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Deployed `SimpleAIBountyJudge` address. The UI shows a banner until this is set. |
+| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Deployed `AIJudge` address. The UI shows a banner until this is set. |
 | `NEXT_PUBLIC_RITUAL_RPC_URL` | Ritual Chain JSON-RPC endpoint. |
 | `NEXT_PUBLIC_RITUAL_CHAIN_ID` | Numeric chain id (default `1979`). |
 | `NEXT_PUBLIC_RITUAL_EXECUTOR_ADDRESS` | LLM executor / precompile-callback address used when encoding `judgeAll` input. Defaults to the LLM precompile `0x…0802`. |
@@ -81,7 +81,7 @@ src/
   lib/
     ritualLlm.ts           buildJudgeAllLlmInput() — Ritual LLM request encoder
     aiReview.ts            Decode aiReview bytes + parse judge JSON
-    bounty.ts              Bounty type, status logic, submission gating
+    bounty.ts              Bounty type, status logic, commitment/reveal gating
     format.ts              Address/amount/timestamp formatting helpers
   components/               UI primitives + each feature card
 ```
@@ -114,6 +114,7 @@ finalize input is prefilled with the AI's recommended `winnerIndex`.
 
 - Transaction buttons show clear states and disable while pending.
 - Owner-only actions (Judge / Finalize) only appear for the connected owner.
+- Reveal secrets are kept in `localStorage` until the participant reveals.
 - The "recent bounties" list is kept in `localStorage` (no indexer required).
 - Multicall is **not** assumed — submissions are read one-by-one, so it works on
   a fresh chain without a deployed multicall contract.
